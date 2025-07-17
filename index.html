@@ -79,6 +79,9 @@
                 <button id="sendButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-green-500" disabled>
                     Enviar
                 </button>
+                <button id="clearButton" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                    Limpiar
+                </button>
             </div>
         </footer>
     </div>
@@ -86,6 +89,7 @@
     <script type="module">
         const connectButton = document.getElementById('connectButton');
         const sendButton = document.getElementById('sendButton');
+        const clearButton = document.getElementById('clearButton');
         const messageInput = document.getElementById('messageInput');
         const terminal = document.getElementById('terminal');
         const terminalContainer = document.getElementById('terminal-container');
@@ -228,10 +232,16 @@
                 log(`Error al enviar: ${error.message}`, 'error');
             }
         }
+
+        function onClear() {
+            terminal.innerHTML = '';
+            log('Consola limpiada.');
+        }
         
         // Event Listeners
         connectButton.addEventListener('click', onConnect);
         sendButton.addEventListener('click', onSend);
+        clearButton.addEventListener('click', onClear);
         messageInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 onSend();
