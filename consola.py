@@ -41,7 +41,7 @@ while True:
     
     # Mandar texto periódicamente (como ejemplo)
     now = time.monotonic()
-    if now - last > 1:
+    if now - last > 5:
         texto = "prueba"
         uart.write(texto.encode("utf-8"))
         last = now
