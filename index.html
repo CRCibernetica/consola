@@ -50,11 +50,14 @@
 <body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl flex flex-col h-[90vh]">
-        <!-- Header -->
         <header class="flex items-center justify-between p-4 border-b border-gray-700">
-            <h1 class="text-xl md:text-2xl font-bold text-gray-200">Consola BLE UART</h1>
+            <h1 id="header-title" class="text-xl md:text-2xl font-bold text-gray-200">Consola BLE UART</h1>
             <div class="flex items-center space-x-4">
-                 <div class="flex items-center space-x-2">
+                 <select id="langSelector" class="bg-gray-700 text-white border border-gray-600 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                </select>
+                <div class="flex items-center space-x-2">
                     <span id="status-dot" class="status-dot status-disconnected"></span>
                     <span id="status-text" class="text-sm font-medium text-gray-400">Desconectado</span>
                 </div>
@@ -64,15 +67,11 @@
             </div>
         </header>
 
-        <!-- Terminal -->
         <main class="flex-grow p-4 overflow-y-auto" id="terminal-container">
             <div id="terminal" class="h-full text-sm font-mono whitespace-pre-wrap">
-                <p class="text-gray-400">&gt; Bienvenido a la Consola BLE UART.</p>
-                <p class="text-gray-400">&gt; Presiona "Conectar" para buscar un dispositivo.</p>
             </div>
         </main>
 
-        <!-- Input -->
         <footer class="p-4 border-t border-gray-700">
             <div class="flex space-x-2">
                 <input type="text" id="messageInput" placeholder="Escribe un mensaje..." class="flex-grow bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
@@ -87,6 +86,7 @@
     </div>
 
     <script type="module">
+        // DOM Elements
         const connectButton = document.getElementById('connectButton');
         const sendButton = document.getElementById('sendButton');
         const clearButton = document.getElementById('clearButton');
@@ -95,58 +95,170 @@
         const terminalContainer = document.getElementById('terminal-container');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
+        const langSelector = document.getElementById('langSelector');
+        const headerTitle = document.getElementById('header-title');
 
+        // BLE Variables
         let bleDevice;
         let txCharacteristic;
         let rxCharacteristic;
         const textEncoder = new TextEncoder();
         const textDecoder = new TextDecoder();
-
-        // Nordic UART Service UUIDs
         const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-        const TX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // Client to Server
-        const RX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Server to Client
+        const TX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+        const RX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
-        function log(message, type = 'info') {
+        // Translation and State
+        let currentLang = 'es'; // Default language
+
+        const translations = {
+            es: {
+                title: 'Consola BLE UART',
+                headerTitle: 'Consola BLE UART',
+                statusDisconnected: 'Desconectado',
+                statusConnected: 'Conectado',
+                btnConnect: 'Conectar',
+                btnDisconnect: 'Desconectar',
+                welcome1: 'Bienvenido a la Consola BLE UART.',
+                welcome2: 'Presiona "Conectar" para buscar un dispositivo.',
+                inputPlaceholder: 'Escribe un mensaje...',
+                btnSend: 'Enviar',
+                btnClear: 'Limpiar',
+                logDisconnecting: 'Desconectando del dispositivo...',
+                logScanning: 'Buscando dispositivos BLE...',
+                logSelected: 'Dispositivo seleccionado:',
+                logUnnamedDevice: 'Dispositivo sin nombre',
+                logConnectingGATT: 'Conectando al servidor GATT...',
+                logGetService: 'Obteniendo el servicio UART...',
+                logGetTX: 'Obteniendo la característica TX...',
+                logGetRX: 'Obteniendo la característica RX...',
+                logStartingNotifications: 'Iniciando notificaciones...',
+                logSuccess: '¡Conexión exitosa! Listo para enviar y recibir datos.',
+                logDeviceDisconnected: 'Dispositivo desconectado.',
+                logNoTX: 'No hay una característica TX válida.',
+                logErrorSend: 'Error al enviar:',
+                logCleared: 'Consola limpiada.',
+                prefixSent: '[ENVIADO]',
+                prefixReceived: '[RECIBIDO]',
+                prefixError: '[ERROR]'
+            },
+            en: {
+                title: 'BLE UART Console',
+                headerTitle: 'BLE UART Console',
+                statusDisconnected: 'Disconnected',
+                statusConnected: 'Connected',
+                btnConnect: 'Connect',
+                btnDisconnect: 'Disconnect',
+                welcome1: 'Welcome to the BLE UART Console.',
+                welcome2: 'Press "Connect" to search for a device.',
+                inputPlaceholder: 'Type a message...',
+                btnSend: 'Send',
+                btnClear: 'Clear',
+                logDisconnecting: 'Disconnecting from device...',
+                logScanning: 'Scanning for BLE devices...',
+                logSelected: 'Selected device:',
+                logUnnamedDevice: 'Unnamed Device',
+                logConnectingGATT: 'Connecting to GATT Server...',
+                logGetService: 'Getting UART Service...',
+                logGetTX: 'Getting TX Characteristic...',
+                logGetRX: 'Getting RX Characteristic...',
+                logStartingNotifications: 'Starting Notifications...',
+                logSuccess: 'Connection successful! Ready to send and receive data.',
+                logDeviceDisconnected: 'Device disconnected.',
+                logNoTX: 'No valid TX characteristic.',
+                logErrorSend: 'Error sending:',
+                logCleared: 'Console cleared.',
+                prefixSent: '[SENT]',
+                prefixReceived: '[RECEIVED]',
+                prefixError: '[ERROR]'
+            }
+        };
+
+        /**
+         * Sets the language of the UI
+         * @param {string} lang - The language code ('en' or 'es')
+         */
+        function setLanguage(lang) {
+            currentLang = lang;
+            const t = translations[lang];
+
+            // Update HTML lang attribute
+            document.documentElement.lang = lang;
+
+            // Update static text
+            document.title = t.title;
+            headerTitle.textContent = t.headerTitle;
+            messageInput.placeholder = t.inputPlaceholder;
+            sendButton.textContent = t.btnSend;
+            clearButton.textContent = t.btnClear;
+
+            // Update connection status text based on current state
+            updateConnectionStatus(bleDevice && bleDevice.gatt.connected);
+
+            // Clear terminal and add new welcome messages
+            terminal.innerHTML = '';
+            log(t.welcome1, 'info', true); // true = no prefix
+            log(t.welcome2, 'info', true); // true = no prefix
+        }
+
+        /**
+         * Logs a message to the terminal
+         * @param {string} message - The message to log
+         * @param {string} type - 'info', 'error', 'sent', or 'received'
+         * @param {boolean} noPrefix - If true, omits the prefix (e.g., '>')
+         */
+        function log(message, type = 'info', noPrefix = false) {
+            const t = translations[currentLang];
             const p = document.createElement('p');
             let prefix = '>';
-            switch(type) {
-                case 'error':
-                    p.className = 'text-red-400';
-                    prefix = '[ERROR]';
-                    break;
-                case 'sent':
-                    p.className = 'text-blue-400';
-                    prefix = '[ENVIADO]';
-                    break;
-                case 'received':
-                    p.className = 'text-green-400';
-                    prefix = '[RECIBIDO]';
-                    break;
-                case 'info':
-                default:
-                    p.className = 'text-gray-400';
-                    break;
+
+            if (!noPrefix) {
+                switch(type) {
+                    case 'error':
+                        p.className = 'text-red-400';
+                        prefix = t.prefixError;
+                        break;
+                    case 'sent':
+                        p.className = 'text-blue-400';
+                        prefix = t.prefixSent;
+                        break;
+                    case 'received':
+                        p.className = 'text-green-400';
+                        prefix = t.prefixReceived;
+                        break;
+                    case 'info':
+                    default:
+                        p.className = 'text-gray-400';
+                        break;
+                }
+            } else {
+                 p.className = 'text-gray-400'; // For welcome messages
             }
+
             p.textContent = `${prefix} ${message}`;
             terminal.appendChild(p);
             // Scroll to the bottom
             terminalContainer.scrollTop = terminalContainer.scrollHeight;
         }
 
+        /**
+         * Updates the UI elements based on connection state
+         * @param {boolean} connected - Whether the device is connected
+         */
         function updateConnectionStatus(connected) {
+            const t = translations[currentLang];
             if (connected) {
                 statusDot.classList.remove('status-disconnected');
                 statusDot.classList.add('status-connected');
-                statusText.textContent = 'Conectado';
-                connectButton.textContent = 'Desconectar';
+                statusText.textContent = t.statusConnected;
+                connectButton.textContent = t.btnDisconnect;
                 messageInput.disabled = false;
                 sendButton.disabled = false;
             } else {
                 statusDot.classList.remove('status-connected');
                 statusDot.classList.add('status-disconnected');
-                statusText.textContent = 'Desconectado';
-                connectButton.textContent = 'Conectar';
+                statusText.textContent = t.statusDisconnected;
+                connectButton.textContent = t.btnConnect;
                 messageInput.disabled = true;
                 sendButton.disabled = true;
                 bleDevice = null;
@@ -156,40 +268,40 @@
         }
 
         async function onConnect() {
+            const t = translations[currentLang];
             if (bleDevice && bleDevice.gatt.connected) {
-                log('Desconectando del dispositivo...');
+                log(t.logDisconnecting);
                 bleDevice.gatt.disconnect();
                 // The 'gattserverdisconnected' event will handle the UI update
                 return;
             }
 
             try {
-                log('Buscando dispositivos BLE...');
+                log(t.logScanning);
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [{ services: [UART_SERVICE_UUID] }],
-                    // optionalServices: [UART_SERVICE_UUID] // Use this if you need to access other services
                 });
 
-                log(`Dispositivo seleccionado: ${bleDevice.name || 'Dispositivo sin nombre'}`);
+                log(`${t.logSelected} ${bleDevice.name || t.logUnnamedDevice}`);
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnect);
 
-                log('Conectando al servidor GATT...');
+                log(t.logConnectingGATT);
                 const server = await bleDevice.gatt.connect();
 
-                log('Obteniendo el servicio UART...');
+                log(t.logGetService);
                 const service = await server.getPrimaryService(UART_SERVICE_UUID);
 
-                log('Obteniendo la característica TX...');
+                log(t.logGetTX);
                 txCharacteristic = await service.getCharacteristic(TX_CHARACTERISTIC_UUID);
 
-                log('Obteniendo la característica RX...');
+                log(t.logGetRX);
                 rxCharacteristic = await service.getCharacteristic(RX_CHARACTERISTIC_UUID);
 
-                log('Iniciando notificaciones...');
+                log(t.logStartingNotifications);
                 await rxCharacteristic.startNotifications();
                 rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
 
-                log('¡Conexión exitosa! Listo para enviar y recibir datos.');
+                log(t.logSuccess);
                 updateConnectionStatus(true);
 
             } catch (error) {
@@ -199,7 +311,7 @@
         }
 
         function onDisconnect() {
-            log('Dispositivo desconectado.');
+            log(translations[currentLang].logDeviceDisconnected);
             updateConnectionStatus(false);
             if (bleDevice) {
                 bleDevice.removeEventListener('gattserverdisconnected', onDisconnect);
@@ -213,8 +325,9 @@
         }
 
         async function onSend() {
+            const t = translations[currentLang];
             if (!txCharacteristic) {
-                log('No hay una característica TX válida.', 'error');
+                log(t.logNoTX, 'error');
                 return;
             }
 
@@ -229,13 +342,13 @@
                 log(message, 'sent');
                 messageInput.value = '';
             } catch (error) {
-                log(`Error al enviar: ${error.message}`, 'error');
+                log(`${t.logErrorSend} ${error.message}`, 'error');
             }
         }
 
         function onClear() {
             terminal.innerHTML = '';
-            log('Consola limpiada.');
+            log(translations[currentLang].logCleared, 'info', true);
         }
         
         // Event Listeners
@@ -247,9 +360,10 @@
                 onSend();
             }
         });
+        // New listener for the language selector
+        langSelector.addEventListener('change', (event) => {
+            setLanguage(event.target.value);
+        });
 
-        // Initial state
-        updateConnectionStatus(false);
-    </script>
-</body>
-</html>
+        // Initial state on page load
+        setLanguage(currentLang); // This replaces the old updateConnectionStatus(
